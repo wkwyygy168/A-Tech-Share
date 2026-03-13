@@ -1,25 +1,31 @@
 name: 小A科技分享-全自动工厂
+
 on:
-  workflow_dispatch:
+  workflow_dispatch:        # 手动点火
   schedule:
-    - cron: '0 0,12 * * *'
+    - cron: '0 */2 * * *'    # 每2小时自动开工一次
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: 1. 迁出代码
+      - name: 签入代码
         uses: actions/checkout@v4
 
-      - name: 2. 运行纯 Python 洗货
-        run: |
-          pip install requests PyYAML
-          python main.py
+      - name: 安装 Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-      - name: 3. 提交并出货
+      - name: 安装必要插件
+        run: |
+          pip install requests
+
+      - name: 执行洗货脚本
+        run: python your_script_name.py  # 这里的名字记得改成你 Python 脚本的文件名
+
+      - name: 自动化提交更新
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🚀 精华节点已更新"
-          file_pattern: 'output/*'
+          commit_message: "🚀 精华节点已更新 (Node 24 环境)"
+          file_pattern: 'output/*'  # 只提交 output 文件夹里的精华
