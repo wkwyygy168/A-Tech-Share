@@ -1,5 +1,6 @@
+# @小A科技分享 专用配置
 print-progress: true
-concurrent: 20
+concurrent: 30
 timeout: 5000
 min-speed: 1
 download-mb: 1
@@ -7,13 +8,12 @@ download-mb: 1
 rename-node: true
 node-prefix: " @小A科技分享 |"
 
-# 强制本地当前目录
 save-method: local
 output-dir: "output"
 output-formats:
   - yaml
   - base64
 
-# 读取 main.py 生产的文件
+# 这里是重中之重：直接写文件名，不要加奇怪的路径
 sub-urls:
-  - "./nodes.txt"
+  - "nodes.txt"
