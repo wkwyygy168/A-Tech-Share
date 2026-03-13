@@ -5,10 +5,8 @@ import concurrent.futures
 
 # --- 老大的核心源列表 ---
 sources = [
-    "https://gist.githubusercontent.com/shuaidaoya/9e5cf2749c0ce79932dd9229d9b4162b/raw/all.yaml",
-    "https://raw.githubusercontent.com/Alien136/clash-proxies/main/clash.yaml",
-    "https://raw.githubusercontent.com/AzadNetCH/Clash/main/AzadNet.txt",
-    "https://raw.githubusercontent.com/freefq/free/master/v2ray",
+    "https://paste.c-net.org/VelvetOctavius",
+    "https://paste.c-net.org/MajorsBallon",
     # ... 其余源由于篇幅省略，请老大保留你之前的完整列表 ...
 ]
 
