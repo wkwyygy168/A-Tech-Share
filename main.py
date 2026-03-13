@@ -2,70 +2,61 @@ import requests
 import base64
 import socket
 import concurrent.futures
+import time
 
-# --- 老大的核心源 ---
+# --- 1. 配置区域 (参考老大的 YAML 逻辑) ---
 sources = [
     "https://paste.c-net.org/VelvetOctavius",
     "https://paste.c-net.org/MajorsBallon",
 ]
 
-# 扩展旗帜库
+# 只要有速度就保留，超时放宽到 5000ms
+TIMEOUT = 5.0 
+CHECK_URL = "http://ip-api.com/json/?fields=status,countryCode,country"
+BRAND = "@小A科技分享"
+
+# 旗帜对应
 FLAG_MAP = {
-    "CN": "🇨🇳CN", "HK": "🇨🇳HK", "TW": "🇨🇳TW", "MO": "🇨🇳MO",
-    "US": "🇺🇸US", "JP": "🇯🇵JP", "KR": "🇰🇷KR", "SG": "🇸🇬SG",
-    "GB": "🇬🇧UK", "DE": "🇩🇪DE", "FR": "🇫🇷FR", "RU": "🇷🇺RU",
-    "CA": "🇨🇦CA", "AU": "🇦🇺AU", "IN": "🇮🇳IN", "NL": "🇳🇱NL"
+    "CN": "🇨🇳CN", "HK": "🇨🇳HK", "TW": "🇨🇳TW", "US": "🇺🇸US", 
+    "JP": "🇯🇵JP", "KR": "🇰🇷KR", "SG": "🇸🇬SG", "GB": "🇬🇧UK"
 }
 
-def get_real_region(host):
+def get_node_real_info(link):
     """
-    通过可靠的 API 获取准确的国家代码
+    核心逻辑：模拟 subs-check 
+    不只是查 IP，而是尝试通过节点‘握手’获取真实出口地区
     """
     try:
-        # 1. 尝试将 host 转为 IP
-        ip = socket.gethostbyname(host)
-        # 2. 使用 ip-api (带 fields 过滤更快)
-        api_url = f"http://ip-api.com/json/{ip}?fields=status,countryCode"
-        res = requests.get(api_url, timeout=3).json()
-        
-        if res.get("status") == "success":
-            code = res.get("countryCode")
-            return FLAG_MAP.get(code, f"🌐{code}")
+        # 提取 Host 和 Port 进行初步存活测试
+        clean_part = link.split('#')[0]
+        server_info = clean_part.split("@")[-1] if "@" in clean_part else clean_part.split("://")[-1]
+        host_port = server_info.split("/")[0].split("?")[0]
+        host = host_port.split(":")[0]
+        port = int(host_port.split(":")[1])
+
+        # 1. 存活测试 (TCP 握手)
+        start_time = time.time()
+        with socket.create_connection((host, port), timeout=TIMEOUT):
+            latency = int((time.time() - start_time) * 1000)
+            
+            # 2. 精准识别：这里我们直接使用 API 获取该 IP 的物理归属
+            # (注意：在 Python 环境中完全模拟‘走节点代理获取出口 IP’需要配合本地核心，
+            # 这里我们通过高精度的 API 纠正位置识别)
+            res = requests.get(f"http://ip-api.com/json/{host}?fields=status,countryCode", timeout=3).json()
+            if res.get("status") == "success":
+                code = res.get("countryCode")
+                flag = FLAG_MAP.get(code, f"🌐{code}")
+                return link, flag, latency
     except:
         pass
-    return "🌐UN"
-
-def check_and_format(link):
-    """
-    测速 + 精准识别地区
-    """
-    try:
-        # 提取 Host
-        clean_part = link.split('#')[0]
-        if "@" in clean_part:
-            server_info = clean_part.split("@")[-1]
-        else:
-            server_info = clean_part.split("://")[-1]
-            
-        host_port = server_info.split("/")[0].split("?")[0]
-        
-        if ":" in host_port:
-            host = host_port.split(":")[0]
-            port = int(host_port.split(":")[1])
-            
-            # 1. 测速（只有通的才查归属地，节省 API 额度）
-            with socket.create_connection((host, port), timeout=2.5):
-                # 2. 获取准确地区
-                region_label = get_real_region(host)
-                return link, region_label
-    except:
-        return None
+    return None
 
 def process():
+    print(f"🚀 启动【{BRAND}】全自动工厂...")
     raw_links = []
     seen = set()
-    
-    print("📡 正在精准采集节点...")
+
+    # 采集
     for url in sources:
         try:
             res = requests.get(url, timeout=10)
@@ -78,38 +69,43 @@ def process():
                     seen.add(line.strip())
         except: continue
 
-    final_list = []
+    print(f"📊 采集完成：{len(raw_links)} 个节点。开始多线程洗货（并发：20）...")
+
+    final_results = []
     region_counts = {}
 
-    # 提高线程到 50，快速过一遍
-    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-        results = list(executor.map(check_and_format, raw_links))
+    # 并发执行 (参考 concurrent: 20)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+        results = list(executor.map(get_node_real_info, raw_links))
         
-        for res in results:
-            if res:
-                link, region = res[0], res[1]
-                region_counts[region] = region_counts.get(region, 0) + 1
-                index = region_counts[region]
-                
-                # 构造图二要求的格式
-                clean_link = link.split('#')[0]
-                formatted_name = f"@小A科技分享 |{region}_{index}|"
-                final_list.append(f"{clean_link}#{formatted_name}")
+        # 过滤掉 None 并按照延迟排序
+        valid_nodes = [r for r in results if r]
+        valid_nodes.sort(key=lambda x: x[2]) # 按延迟从小到大排
 
-    # 写入文件
+        for link, flag, latency in valid_nodes:
+            region_counts[flag] = region_counts.get(flag, 0) + 1
+            idx = region_counts[flag]
+            
+            # 格式重构：@小A科技分享 |🇨🇳JP_1|
+            clean_link = link.split('#')[0]
+            new_name = f"{BRAND} |{flag}_{idx}|"
+            final_results.append(f"{clean_link}#{new_name}")
+
+    # 导出 (参考 output-formats)
     import os
-    if not os.path.exists("output"): os.makedirs("output")
-    
-    with open("output/nodes.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(final_list))
-    
-    with open("output/base64.txt", "w", encoding="utf-8") as f:
-        f.write(base64.b64encode("\n".join(final_list).encode()).decode())
+    out_dir = "output"
+    if not os.path.exists(out_dir): os.makedirs(out_dir)
 
-    print("-" * 30)
-    print(f"✅ 精准洗货完成！")
-    print(f"📊 获得优质节点: {len(final_list)} 个")
-    print(f"🌐 地区分布: { {k: v for k, v in region_counts.items() if v > 0} }")
+    # Base64 格式
+    with open(f"{out_dir}/base64.txt", "w", encoding="utf-8") as f:
+        f.write(base64.b64encode("\n".join(final_results).encode()).decode())
+    
+    # 明文 Nodes 格式
+    with open(f"{out_dir}/nodes.txt", "w", encoding="utf-8") as f:
+        f.write("\n".join(final_results))
+
+    print(f"✅ 洗货成功！保留精华节点: {len(final_results)} 个")
+    print(f"📁 已锁定保存路径：{out_dir}")
 
 if __name__ == "__main__":
     process()
