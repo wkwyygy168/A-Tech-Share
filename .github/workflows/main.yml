@@ -1,9 +1,9 @@
 name: 小A科技分享-全自动工厂
 
 on:
-  workflow_dispatch:        # 手动点火
+  workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'    # 每2小时自动开工一次
+    - cron: '0 */2 * * *'
 
 jobs:
   build:
@@ -22,10 +22,11 @@ jobs:
           pip install requests
 
       - name: 执行洗货脚本
-        run: python your_script_name.py  # 这里的名字记得改成你 Python 脚本的文件名
+        # 【注意】这里必须确保你仓库里有个文件叫 main.py
+        run: python main.py
 
       - name: 自动化提交更新
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "🚀 精华节点已更新 (Node 24 环境)"
-          file_pattern: 'output/*'  # 只提交 output 文件夹里的精华
+          file_pattern: 'output/*'
