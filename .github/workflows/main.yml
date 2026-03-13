@@ -5,38 +5,40 @@ on:
     - cron: '0 0,12 * * *'
 
 jobs:
-  factory-job:
+  wash-and-push:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: 1. 拉取仓库代码
+      - name: 1. 拉取代码
         uses: actions/checkout@v4
 
-      - name: 2. 安装环境并进货
+      - name: 2. 执行 Python 进货
         run: |
           pip install PyYAML requests
-          python main.py  # 这一步产生 nodes.txt
+          python main.py
+          # 检查文件是否真的生成了
+          ls -lh nodes.txt || exit 1
 
-      - name: 3. 原生暴力洗货 (核心修正)
+      - name: 3. 下载并运行洗货工具 (原生 Linux 模式)
         run: |
-          # 下载工具并赋予权限
+          # 下载官方二进制包
           wget https://github.com/beck-8/subs-check/releases/latest/download/subs-check-linux-amd64.tar.gz
           tar -zxf subs-check-linux-amd64.tar.gz
           chmod +x subs-check
           
-          # 强制创建一个 output 文件夹
+          # 强制创建 output
           mkdir -p output
           
-          # 直接在当前目录运行，强制读取 config.yaml
+          # 直接运行工具，它会读根目录的 config.yaml
           ./subs-check config.yaml
           
-          # 检查并强制移动生成的文件到 output
+          # 暴力移动结果
           mv *.txt output/ 2>/dev/null || true
           mv *.yaml output/ 2>/dev/null || true
 
-      - name: 4. 强制推送洗好的“精华版”
+      - name: 4. 推送出货
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🚀 @小A科技分享 成功出货"
+          commit_message: "🚀 @小A科技分享 精华出货"
           file_pattern: 'output/*'
