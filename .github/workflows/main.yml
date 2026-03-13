@@ -1,0 +1,27 @@
+name: 小A全自动洗货工厂
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0,12 * * *'
+
+jobs:
+  wash:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. 迁出代码
+        uses: actions/checkout@v4
+
+      - name: 2. 运行 Python 进货
+        run: |
+          pip install PyYAML requests
+          python main.py
+
+      - name: 3. 运行 subs-check 洗货
+        uses: beck-8/subs-check@master
+        # 它会按照你的 config.yaml 规则，去洗 main.py 生成的 nodes.txt
+
+      - name: 4. 强制推送洗好的“精华版”
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🚀 @小A科技分享 精华节点更新"
+          file_pattern: 'output/*'
