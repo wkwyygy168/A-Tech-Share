@@ -1,0 +1,27 @@
+# 沿用老大提供的逻辑：只要有速就要 + 品牌重命名
+print-progress: true
+concurrent: 20
+timeout: 5000
+alive-test-url: http://gstatic.com/generate_204
+
+# 核心洗货：有速度就保留
+min-speed: 1
+download-mb: 1
+total-speed-limit: 0
+
+# 核心重命名：@小A科技分享
+rename-node: true
+node-prefix: " @小A科技分享 |"
+
+# 落地设置 (这里改成了云端通用路径)
+save-method: local
+output-dir: "output"
+output-formats:
+  - yaml
+  - base64
+  - mihomo
+
+# 关键：让洗货工具去读 Python 抓下来的 nodes.txt
+sub-urls:
+  - "./nodes.txt"
+  - "./nodes.yaml"
