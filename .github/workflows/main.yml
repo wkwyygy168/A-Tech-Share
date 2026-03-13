@@ -13,32 +13,34 @@ jobs:
       - name: 1. 拉取代码
         uses: actions/checkout@v4
 
-      - name: 2. 执行 Python 进货
+      - name: 2. 安装环境并进货
         run: |
           pip install PyYAML requests
           python main.py
-          # 检查文件是否真的生成了
-          ls -lh nodes.txt || exit 1
+          # 检查货是否出来了
+          ls -lh nodes.txt
 
-      - name: 3. 下载并运行洗货工具 (原生 Linux 模式)
+      - name: 3. 下载、授权并暴力洗货
         run: |
-          # 下载官方二进制包
+          # 下载官方包
           wget https://github.com/beck-8/subs-check/releases/latest/download/subs-check-linux-amd64.tar.gz
           tar -zxf subs-check-linux-amd64.tar.gz
-          chmod +x subs-check
+          
+          # 【关键修正】赋予最高执行权限，解决 Permission denied
+          chmod 777 subs-check
           
           # 强制创建 output
           mkdir -p output
           
-          # 直接运行工具，它会读根目录的 config.yaml
+          # 运行洗货 (强制指定 config.yaml)
           ./subs-check config.yaml
           
-          # 暴力移动结果
+          # 暴力扫尾：把生成的 txt 和 yaml 全塞进 output
           mv *.txt output/ 2>/dev/null || true
           mv *.yaml output/ 2>/dev/null || true
 
-      - name: 4. 推送出货
+      - name: 4. 强制推送精华版
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🚀 @小A科技分享 精华出货"
+          commit_message: "🚀 @小A科技分享 出货成功"
           file_pattern: 'output/*'
