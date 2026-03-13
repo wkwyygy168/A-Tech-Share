@@ -1,29 +1,19 @@
-# === @小A科技分享 专属洗货配置 ===
 print-progress: true
 concurrent: 20
-check-interval: 120
-success-limit: 0
-
-# 核心：只要有速度就保留
 timeout: 5000
-alive-test-url: http://gstatic.com/generate_204
 min-speed: 1
 download-mb: 1
-download-timeout: 10
 
-# 核心：重命名 (完全遵循老大参考图)
 rename-node: true
 node-prefix: " @小A科技分享 |"
 
-# 核心：存到 output 文件夹
+# 强制本地当前目录
 save-method: local
 output-dir: "output"
 output-formats:
   - yaml
   - base64
-  - mihomo
 
-# 关键：让机器洗 main.py 刚才抓下来的那两堆货
+# 读取 main.py 生产的文件
 sub-urls:
   - "./nodes.txt"
-  - "./nodes.yaml"
