@@ -1,46 +1,25 @@
-name: 小A全自动洗货工厂
+name: 小A科技分享-全自动工厂
 on:
   workflow_dispatch:
   schedule:
     - cron: '0 0,12 * * *'
 
 jobs:
-  wash-and-push:
+  build:
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: 1. 拉取代码
+      - name: 1. 迁出代码
         uses: actions/checkout@v4
 
-      - name: 2. 安装环境并进货
+      - name: 2. 运行纯 Python 洗货
         run: |
-          pip install PyYAML requests
+          pip install requests PyYAML
           python main.py
-          # 检查货是否出来了
-          ls -lh nodes.txt
 
-      - name: 3. 下载、授权并暴力洗货
-        run: |
-          # 下载官方包
-          wget https://github.com/beck-8/subs-check/releases/latest/download/subs-check-linux-amd64.tar.gz
-          tar -zxf subs-check-linux-amd64.tar.gz
-          
-          # 【关键修正】赋予最高执行权限，解决 Permission denied
-          chmod 777 subs-check
-          
-          # 强制创建 output
-          mkdir -p output
-          
-          # 运行洗货 (强制指定 config.yaml)
-          ./subs-check config.yaml
-          
-          # 暴力扫尾：把生成的 txt 和 yaml 全塞进 output
-          mv *.txt output/ 2>/dev/null || true
-          mv *.yaml output/ 2>/dev/null || true
-
-      - name: 4. 强制推送精华版
+      - name: 3. 提交并出货
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🚀 @小A科技分享 出货成功"
+          commit_message: "🚀 精华节点已更新"
           file_pattern: 'output/*'
