@@ -2,7 +2,6 @@ import requests
 import base64
 import socket
 import concurrent.futures
-import re
 
 # --- 老大的核心源 ---
 sources = [
@@ -10,39 +9,55 @@ sources = [
     "https://paste.c-net.org/MajorsBallon",
 ]
 
-# 国旗对应表
+# 扩展旗帜库
 FLAG_MAP = {
-    "China": "🇨🇳HK", "Hong Kong": "🇨🇳HK", "Taiwan": "🇨🇳TW",
-    "United States": "🇺🇸US", "Japan": "🇯🇵JP", "Korea": "🇰🇷KR",
-    "Singapore": "🇸🇬SG", "United Kingdom": "🇬🇧UK", "Germany": "🇩🇪DE"
+    "CN": "🇨🇳CN", "HK": "🇨🇳HK", "TW": "🇨🇳TW", "MO": "🇨🇳MO",
+    "US": "🇺🇸US", "JP": "🇯🇵JP", "KR": "🇰🇷KR", "SG": "🇸🇬SG",
+    "GB": "🇬🇧UK", "DE": "🇩🇪DE", "FR": "🇫🇷FR", "RU": "🇷🇺RU",
+    "CA": "🇨🇦CA", "AU": "🇦🇺AU", "IN": "🇮🇳IN", "NL": "🇳🇱NL"
 }
 
-def get_region(host):
-    """查询 IP 归属地并返回旗帜和缩写"""
+def get_real_region(host):
+    """
+    通过可靠的 API 获取准确的国家代码
+    """
     try:
-        # 如果是域名先转成 IP
+        # 1. 尝试将 host 转为 IP
         ip = socket.gethostbyname(host)
-        res = requests.get(f"http://ip-api.com/json/{ip}?fields=country", timeout=2).json()
-        country = res.get("country", "UN")
-        return FLAG_MAP.get(country, f"🌐{country[:2].upper()}")
+        # 2. 使用 ip-api (带 fields 过滤更快)
+        api_url = f"http://ip-api.com/json/{ip}?fields=status,countryCode"
+        res = requests.get(api_url, timeout=3).json()
+        
+        if res.get("status") == "success":
+            code = res.get("countryCode")
+            return FLAG_MAP.get(code, f"🌐{code}")
     except:
-        return "🌐UN"
+        pass
+    return "🌐UN"
 
 def check_and_format(link):
-    """测速 + 格式化名称"""
+    """
+    测速 + 精准识别地区
+    """
     try:
-        # 解析 host
+        # 提取 Host
         clean_part = link.split('#')[0]
-        server_info = clean_part.split("@")[-1] if "@" in clean_part else clean_part.split("://")[-1]
+        if "@" in clean_part:
+            server_info = clean_part.split("@")[-1]
+        else:
+            server_info = clean_part.split("://")[-1]
+            
         host_port = server_info.split("/")[0].split("?")[0]
-        host = host_port.split(":")[0]
-        port = int(host_port.split(":")[1])
-
-        # 1. 测速 (TCP 握手)
-        with socket.create_connection((host, port), timeout=3):
-            # 2. 只有通了的节点才查询地理位置
-            region_label = get_region(host)
-            return link, region_label
+        
+        if ":" in host_port:
+            host = host_port.split(":")[0]
+            port = int(host_port.split(":")[1])
+            
+            # 1. 测速（只有通的才查归属地，节省 API 额度）
+            with socket.create_connection((host, port), timeout=2.5):
+                # 2. 获取准确地区
+                region_label = get_real_region(host)
+                return link, region_label
     except:
         return None
 
@@ -50,7 +65,7 @@ def process():
     raw_links = []
     seen = set()
     
-    print("📡 正在采集源...")
+    print("📡 正在精准采集节点...")
     for url in sources:
         try:
             res = requests.get(url, timeout=10)
@@ -63,27 +78,25 @@ def process():
                     seen.add(line.strip())
         except: continue
 
-    print(f"🔍 采集到 {len(raw_links)} 个节点，开始洗货并标注地区...")
-
     final_list = []
-    region_counts = {} # 用于生成编号，如 HK_1, HK_2
+    region_counts = {}
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=30) as executor:
+    # 提高线程到 50，快速过一遍
+    with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
         results = list(executor.map(check_and_format, raw_links))
         
         for res in results:
             if res:
                 link, region = res[0], res[1]
-                # 统计编号
                 region_counts[region] = region_counts.get(region, 0) + 1
                 index = region_counts[region]
                 
-                # 3. 构造图二格式：@小A科技分享 |🇨🇳HK_1|
+                # 构造图二要求的格式
                 clean_link = link.split('#')[0]
                 formatted_name = f"@小A科技分享 |{region}_{index}|"
                 final_list.append(f"{clean_link}#{formatted_name}")
 
-    # 4. 写入文件
+    # 写入文件
     import os
     if not os.path.exists("output"): os.makedirs("output")
     
@@ -93,7 +106,10 @@ def process():
     with open("output/base64.txt", "w", encoding="utf-8") as f:
         f.write(base64.b64encode("\n".join(final_list).encode()).decode())
 
-    print(f"✅ 完成！输出精华节点 {len(final_list)} 个，格式已同步图二。")
+    print("-" * 30)
+    print(f"✅ 精准洗货完成！")
+    print(f"📊 获得优质节点: {len(final_list)} 个")
+    print(f"🌐 地区分布: { {k: v for k, v in region_counts.items() if v > 0} }")
 
 if __name__ == "__main__":
     process()
