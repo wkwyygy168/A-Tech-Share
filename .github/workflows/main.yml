@@ -13,22 +13,30 @@ jobs:
       - name: 1. 拉取仓库代码
         uses: actions/checkout@v4
 
-      - name: 2. 安装 Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: 3. 执行 Python 进货
+      - name: 2. 安装环境并进货
         run: |
           pip install PyYAML requests
-          python main.py
+          python main.py  # 这一步产生 nodes.txt
 
-      - name: 4. 执行 subs-check 洗货 (测速+重命名)
-        uses: beck-8/subs-check@master
-        # 此时它会自动读取根目录的 config.yaml
+      - name: 3. 原生暴力洗货 (核心修正)
+        run: |
+          # 下载工具并赋予权限
+          wget https://github.com/beck-8/subs-check/releases/latest/download/subs-check-linux-amd64.tar.gz
+          tar -zxf subs-check-linux-amd64.tar.gz
+          chmod +x subs-check
+          
+          # 强制创建一个 output 文件夹
+          mkdir -p output
+          
+          # 直接在当前目录运行，强制读取 config.yaml
+          ./subs-check config.yaml
+          
+          # 检查并强制移动生成的文件到 output
+          mv *.txt output/ 2>/dev/null || true
+          mv *.yaml output/ 2>/dev/null || true
 
-      - name: 5. 将精华版推送到 output 文件夹
+      - name: 4. 强制推送洗好的“精华版”
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "🚀 精华节点已出货"
+          commit_message: "🚀 @小A科技分享 成功出货"
           file_pattern: 'output/*'
