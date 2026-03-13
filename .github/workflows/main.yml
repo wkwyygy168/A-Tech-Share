@@ -1,20 +1,25 @@
 name: 小A科技分享-全自动工厂
-
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */2 * * *'
+    - cron: '0 0,12 * * *'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: 1. 迁出代码
+        uses: actions/checkout@v4
+
+      - name: 2. 运行纯 Python 洗货
+        run: |
+          pip install requests PyYAML
+          python main.py
+
+      - name: 3. 提交并出货
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          python-version: '3.10'
-      - run: pip install requests
-      - run: python main.py
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "🚀 自动洗货完成"
+          commit_message: "🚀 精华节点已更新"
+          file_pattern: 'output/*'
